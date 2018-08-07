@@ -69,6 +69,7 @@ class Vibrations(object):
         write_vasp_py(self)
         if converged_outcar() is False:
                 print('Starting structural optimization.....')
+                self.atoms.set_calculator(copy.deepcopy(ase_calculator))
                 self.atoms.get_potential_energy()
         print('The atoms structure is optimized.')
 
@@ -96,6 +97,7 @@ class Vibrations(object):
         write_vasp_py(self)
         if converged_outcar() is False:
                 print('Calculating Born Effective Charges (BEC)..........')
+                self.atoms.set_calculator(copy.deepcopy(ase_calc_bec))
                 self.atoms.get_potential_energy()
         print('DFPT calculation completed.')
         os.chdir('../')
@@ -235,6 +237,7 @@ class Vibrations(object):
                         print('Calculation ' + str(n_calcs) + '/' + str(
                               len(self.eigenvalues_cm) * len(step_int)) + '.')
                         if step != 0.0:
+                            struc_i.set_calculator(ase_calculator)
                             struc_i.get_potential_energy()
                         os.chdir('../../../')
                     os.chdir(dir_step)
