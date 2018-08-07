@@ -26,4 +26,11 @@ vasp_calc = Vasp(istart=0,        # Start from scratch.
                 lreal=True       # Reciprocal space.
                 )
 
-vib = Vibrations(ase_calculator=vasp_calc)
+vib = Vibrations(ase_calculator=vasp_calc,
+                 anharmonic_correction=True)
+
+vib.get_spectrum(limits=(300, 5000), spectra_mode='gas_phase',
+                 anharmonic_corrected_spectra=False)
+
+
+

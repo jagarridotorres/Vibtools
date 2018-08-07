@@ -90,7 +90,7 @@ for i in range(0,numberofmodes):
         fCorrection = 1.0
     f_corr.append(fCorrection)
 
-Results = np.zeros((numberofmodes,4))
+Results = np.zeros((numberofmodes, 4))
 Results[:,0] = mode
 Results[:,1] = paramDe_opt
 Results[:,2] = paramA_opt

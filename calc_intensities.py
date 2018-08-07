@@ -2,20 +2,20 @@ from ase.io import read
 import numpy as np
 import matplotlib.pyplot as plt
 
-wd = './RAW-VASP/Ethyl-optPBE/'
+wd = './examples/PBE-ethyl/'
 opt_dir = 'Step1-Optimisation/'
 bec_dir = 'Step2-SecondDerivative/'
 anh_modes_dir = 'Step3-Anharmonicity-modes/'
 
 # Introduce here the desired parameters:
 
-x_axis_lim = [300, 3700]  # x axis limits for the spectrum.
-peaks_width = 60.0  # FWHM of the peaks.
-resolution = 1.0 # Resolution of the spectrum in cm-1.
+x_axis_lim = (300, 3700)  # x axis limits for the spectrum.
+fwhm = 60.0  # FWHM of the peaks.
+resolution = 1.0  # Resolution of the spectrum in cm-1.
 
 # Only for HREELS:
 n_transfer = 1.0  # Set transfer function value.
-hreels_angle = 89.95 # HREELS angle (0 degrees = perpendicular to the
+angle = 89.95  # HREELS angle (0 degrees = perpendicular to the
 # surface).
 
 atoms = read(wd + opt_dir + 'OUTCAR')
@@ -106,7 +106,7 @@ intensities = []
 # Decomposition for HREELS:
 
 # Angle resolved:
-theta = hreels_angle
+theta = angle
 
 z_weight = np.cos((90. - theta) * np.pi / 180.)
 z_weight *= z_weight
@@ -142,7 +142,6 @@ norm_intensities_normal_modes = intensities_normal_modes / np.max(intensities_no
 def gaus(x,a,x0,sigma):
     return a*np.exp(-(x-x0)**2/(2*sigma**2))
 
-fwhm = peaks_width
 sigma = fwhm / (2 * np.sqrt(2* np.log(2)))
 
 list_x0 = eigenvalues_cm_normal_modes
