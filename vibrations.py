@@ -4,6 +4,8 @@ import os
 import copy
 from scipy.optimize import curve_fit, minimize
 from scipy import special
+import shutil
+
 
 class Vibrations(object):
     """ Obtain vibrational spectra from atoms (in ASE format)."""
@@ -72,9 +74,6 @@ class Vibrations(object):
                 self.atoms.set_calculator(copy.deepcopy(ase_calculator))
                 self.atoms.get_potential_energy()
         print('The atoms structure is optimized.')
-
-        # Save optimized structure.
-        opt_structure = copy.deepcopy(self.atoms)
 
         os.chdir('../')
 
@@ -243,12 +242,12 @@ class Vibrations(object):
                             struc_i.set_calculator(ase_calculator)
                             struc_i.get_potential_energy()
                         os.chdir('../../../')
+                    if step == 0.0:
+                        energy_i = read(self.path_opt + 'OUTCAR').get_potential_energy()
                     os.chdir(dir_step)
                     # Get curves of the normal modes:
                     if step != 0.0:
                         energy_i = read('./OUTCAR').get_potential_energy()
-                    if step == 0.0:
-                        energy_i = opt_structure.get_potential_energy()
                     anh_pes.append(energy_i)
                     os.chdir('../../../')
 
