@@ -73,6 +73,9 @@ class Vibrations(object):
                 self.atoms.get_potential_energy()
         print('The atoms structure is optimized.')
 
+        # Save optimized structure.
+        opt_structure = copy.deepcopy(self.atoms)
+
         os.chdir('../')
 
         ######################################################################
@@ -242,7 +245,10 @@ class Vibrations(object):
                         os.chdir('../../../')
                     os.chdir(dir_step)
                     # Get curves of the normal modes:
-                    energy_i = read('./OUTCAR').get_potential_energy()
+                    if step != 0.0:
+                        energy_i = read('./OUTCAR').get_potential_energy()
+                    if step == 0.0:
+                        energy_i = opt_structure.get_potential_energy()
                     anh_pes.append(energy_i)
                     os.chdir('../../../')
 
