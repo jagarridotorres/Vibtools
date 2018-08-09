@@ -56,7 +56,7 @@ class Vibrations(object):
 
         msg = 'You need to provide an ASE calculator. ' \
               'At the moment only the VASP calculator is supported.'
-        assert ase_calculator, msg
+        assert self.ase_calc_opt, msg
 
         # Create a backup of the initial structure.
         write('initial_backup.traj', self.atoms)
@@ -71,7 +71,7 @@ class Vibrations(object):
         write_vasp_py(self)
         if converged_outcar() is False:
                 print('Starting structural optimization.....')
-                self.atoms.set_calculator(copy.deepcopy(ase_calculator))
+                self.atoms.set_calculator(copy.deepcopy(self.ase_calc_opt))
                 self.atoms.get_potential_energy()
         print('The atoms structure is optimized.')
 
@@ -239,7 +239,6 @@ class Vibrations(object):
                         print('Calculation ' + str(n_calcs) + '/' + str(
                               len(self.eigenvalues_cm) * len(step_int)) + '.')
                         if step != 0.0:
-                            struc_i.set_calculator(ase_calculator)
                             struc_i.get_potential_energy()
                         os.chdir('../../../')
                     if step == 0.0:
