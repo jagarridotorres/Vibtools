@@ -10,7 +10,7 @@ import shutil
 class Vibrations(object):
     """ Obtain vibrational spectra from atoms (in ASE format)."""
     def __init__(self, ase_calculator, atoms=None,
-                 anharmonic_correction=True, working_directory='./',
+                 anharmonic_correction=True, working_directory=None,
                  only_normal_modes=True):
         """
         Calculate the (an)-harmonic vibrational frequencies, normal modes
@@ -39,10 +39,12 @@ class Vibrations(object):
         self.ase_calc_opt = ase_calculator
 
         # Create environment for folders:
-        self.wd = working_directory
+        if working_directory is None:
+            self.wd = os.getcwd() + '/'
         self.path_opt = '1_Optimization/'
         self.path_bec = '2_DFPT_BEC/'
         self.path_anh = '3_Anharmonic/'
+
 
         # Save vasp.py for other calculations.
         with open('./vasp.py', 'r') as f:
@@ -69,6 +71,7 @@ class Vibrations(object):
             os.makedirs(self.wd + self.path_opt)
         os.chdir(self.wd + self.path_opt)
         write_vasp_py(self)
+        copy_vdw_kernel(self.wd, './')
         if converged_outcar() is False:
                 print('Starting structural optimization.....')
                 self.atoms.set_calculator(copy.deepcopy(self.ase_calc_opt))
@@ -97,6 +100,7 @@ class Vibrations(object):
             os.makedirs(self.path_bec)
         os.chdir(self.path_bec)
         write_vasp_py(self)
+        copy_vdw_kernel(self.wd, './')
         if converged_outcar() is False:
                 print('Calculating Born Effective Charges (BEC)..........')
                 self.atoms.set_calculator(copy.deepcopy(ase_calc_bec))
@@ -222,6 +226,7 @@ class Vibrations(object):
                         struc_i = copy.deepcopy(struc_initial)
                         os.chdir(dir_step)
                         write_vasp_py(self)
+                        copy_vdw_kernel(self.wd, './')
                         pos_initial = struc_i.get_positions()
                         energy_sec_mode = self.eigenvalues_thz[mode] * 1e12
                         lfactor = (hbar / (2 * np.pi * energy_sec_mode))**0.5
@@ -282,14 +287,6 @@ class Vibrations(object):
             def morse(x, paramDe, paramA):
                 return ((paramDe*(np.exp(-paramA*x)-1)**2))
 
-            def morse_fit(hyperparam, x, y):
-                popt, pcov = curve_fit(morse, x, y, p0 = hyperparam,maxfev=2000000)
-                # print("Mean Squared Error: ", np.mean((y-morse(x, *popt))**2))
-                ss_res = np.dot((y - morse(x, *popt)),(y - morse(x, *popt)))
-                ymean = np.mean(y)
-                ss_tot = np.dot((y-ymean),(y-ymean))
-                rSquared = 1-ss_res/ss_tot
-                return rSquared
 
             # Obtain optimized parameters (Morse).
             paramDe_opt = []
@@ -305,9 +302,6 @@ class Vibrations(object):
                 y = energy[i]
 
                 hyperparameters = [1.0, 1.0]
-                # args = (x,y)
-                # bounds=((None,None),(None,None))
-                # hyper_opt = minimize(morse_fit,hyperparameters,args=args,method='TNC')
 
                 popt, pcov = curve_fit(morse, x, y, p0=hyperparameters,
                                        maxfev=2000000)
@@ -507,3 +501,7 @@ def write_vasp_py(self):
     for i in self.vasp_py:
         f.write(i)
     f.close()
+
+def copy_vdw_kernel(source_dir, target_dir):
+    if os.path.exists(source_dir + 'vdw_kernel.bindat'):
+        shutil.copy2(source_dir, target_dir)
