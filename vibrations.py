@@ -503,5 +503,6 @@ def write_vasp_py(self):
     f.close()
 
 def copy_vdw_kernel(source_dir, target_dir):
-    if os.path.exists(source_dir + 'vdw_kernel.bindat'):
-        shutil.copy(source_dir, target_dir)
+    filename = 'vdw_kernel.bindat'
+    if os.path.exists(source_dir + filename):
+        shutil.copy(source_dir + filename, target_dir + filename)
