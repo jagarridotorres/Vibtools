@@ -1,6 +1,7 @@
 from vibrations import Vibrations
 from ase.calculators.vasp import Vasp
 from ase.io import read
+
 vasp_calc = Vasp(istart=0,        # Start from scratch.
                 gga='PE',        # Method.
                 kpts  = (1,1,1), # k-points.
@@ -29,8 +30,6 @@ vasp_calc = Vasp(istart=0,        # Start from scratch.
 vib = Vibrations(ase_calculator=vasp_calc,
                  anharmonic_correction=True)
 
-vib.get_spectrum(limits=(300, 5000), spectra_mode='gas_phase',
-                 anharmonic_corrected_spectra=False)
-
-
-
+vib.get_spectrum(limits=(490, 3300), spectra_mode='surface',
+                 anharmonic_corrected_spectra=True,
+                 angle=89.95, n_transfer=1.0)

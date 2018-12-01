@@ -2,15 +2,15 @@ import numpy as np
 from ase.io import read, write
 import os
 import copy
-from scipy.optimize import curve_fit, minimize
+from scipy.optimize import curve_fit
 from scipy import special
 import shutil
-
+import pickle
 
 class Vibrations(object):
     """ Obtain vibrational spectra from atoms (in ASE format)."""
     def __init__(self, ase_calculator, atoms=None,
-                 anharmonic_correction=True, working_directory=None,
+                 anharmonic_correction=True,
                  only_normal_modes=True):
         """
         Calculate the (an)-harmonic vibrational frequencies, normal modes
@@ -27,6 +27,10 @@ class Vibrations(object):
             Flag to define whether to perform single-point calculations
             for each eigenvector. These are needed for correcting intensities
             for anharmonic effects.
+        working_directory: string
+            Directory for the calculation.
+        only_normal_modes: bool
+            Whether to consider to compute only the normal modes or not.
         """
 
         #########################################################
@@ -39,12 +43,10 @@ class Vibrations(object):
         self.ase_calc_opt = ase_calculator
 
         # Create environment for folders:
-        if working_directory is None:
-            self.wd = os.getcwd() + '/'
+        self.wd = os.getcwd() + '/'
         self.path_opt = '1_Optimization/'
         self.path_bec = '2_DFPT_BEC/'
         self.path_anh = '3_Anharmonic/'
-
 
         # Save vasp.py for other calculations.
         with open('./vasp.py', 'r') as f:
@@ -203,63 +205,68 @@ class Vibrations(object):
         ######################################################################
 
         if self.anharmonic_correction is True:
-
-            # Default values:
             step_int = np.linspace(-2.0, 2.0, 11.0, endpoint=True)
             step_int = np.round(step_int, 1)
-            hbar = 6.35078e12
-            struc_initial = read('./' + self.path_opt + 'OUTCAR')
-            n_calcs = 0
-            all_anh_pes = []
-            for mode in range(0, len(self.eigenvalues_cm)):
-                anh_pes = []
-                for step in step_int:
-                    n_calcs += 1
-                    # Check whether this single-point has already been calc:
-                    mode_i = str(int(self.eigenvalues_cm[mode]))
-                    dir_mode = './' + self.path_anh + 'mode_' + mode_i + \
-                               '_cm-1/'
-                    dir_step = dir_mode + 'step_' + str(step) +'/'
-                    if not os.path.exists(dir_step):
-                        os.makedirs(dir_step)
-                    if not converged_outcar(dir_step):
-                        struc_i = copy.deepcopy(struc_initial)
-                        os.chdir(dir_step)
-                        write_vasp_py(self)
-                        copy_vdw_kernel(self.wd, './')
-                        pos_initial = struc_i.get_positions()
-                        energy_sec_mode = self.eigenvalues_thz[mode] * 1e12
-                        lfactor = (hbar / (2 * np.pi * energy_sec_mode))**0.5
-                        normalised_step = lfactor * step
-                        delta_pos = np.reshape(self.eigenvectors[mode], (-1,
-                                               3)) * normalised_step
-                        new_pos = pos_initial + delta_pos
-                        struc_i.positions = new_pos
-                        ase_calc_anh_i = copy.deepcopy(self.ase_calc_opt)
-                        ase_calc_anh_i.__dict__['int_params']['nsw'] = 0
-                        struc_i.set_calculator(ase_calc_anh_i)
-                        print('Single-point calculations, vibrational mode at '
-                              '' + mode_i + ' cm-1 and step ' + str(step) +
-                              '.')
-                        print('Calculation ' + str(n_calcs) + '/' + str(
-                              len(self.eigenvalues_cm) * len(step_int)) + '.')
-                        if step != 0.0:
-                            struc_i.get_potential_energy()
-                        os.chdir('../../../')
-                    if step == 0.0:
-                        energy_i = read(self.path_opt + 'OUTCAR').get_potential_energy()
-                    os.chdir(dir_step)
-                    # Get curves of the normal modes:
-                    if step != 0.0:
-                        energy_i = read('./OUTCAR').get_potential_energy()
-                    anh_pes.append(energy_i)
-                    os.chdir('../../../')
+            try:
+                all_anh_pes = pickle.load(open("all_anh_pes.txt", "rb"))
+            except:
+                # Default values:
+                hbar = 6.35078e12
+                struc_initial = read('./' + self.path_opt + 'OUTCAR')
+                n_calcs = 0
+                all_anh_pes = []
+                for mode in range(0, len(self.eigenvalues_cm)):
+                    anh_pes = []
+                    for step in step_int:
+                        n_calcs += 1
+                        # Check whether this single-point has already been calc:
+                        mode_i = str(1 + mode)
+                        dir_mode = './' + self.path_anh + 'mode' + mode_i + '/'
+                        dir_step = dir_mode + 'step_' + str(step) +'/'
 
-                all_anh_pes.append(anh_pes)
-                print('Single-point calculations for the mode at ' +
-                      mode_i + ' ''cm-1 converged.')
-            print('Displacements along each of the vibrational modes '
-                  'completed.')
+                        if not os.path.exists(dir_step):
+                            os.makedirs(dir_step)
+                        if not converged_outcar(dir_step):
+                            struc_i = copy.deepcopy(struc_initial)
+                            os.chdir(dir_step)
+                            write_vasp_py(self)
+                            copy_vdw_kernel(self.wd, './')
+                            pos_initial = struc_i.get_positions()
+                            energy_sec_mode = self.eigenvalues_thz[mode] * 1e12
+                            lfactor = (hbar / (2 * np.pi * energy_sec_mode))**0.5
+                            normalised_step = lfactor * step
+                            delta_pos = np.reshape(self.eigenvectors[mode], (-1,
+                                                   3)) * normalised_step
+                            new_pos = pos_initial + delta_pos
+                            struc_i.positions = new_pos
+                            ase_calc_anh_i = copy.deepcopy(self.ase_calc_opt)
+                            ase_calc_anh_i.__dict__['int_params']['nsw'] = 0
+                            struc_i.set_calculator(ase_calc_anh_i)
+                            print('Single-point calculations, vibrational mode at '
+                                  '' + str(self.eigenvalues_cm[int(mode_i)-1]) + ' cm-1 and step ' + str(step) +
+                                  '.')
+                            print('Calculation ' + str(n_calcs) + '/' + str(
+                                  len(self.eigenvalues_cm) * len(step_int)) + '.')
+                            if step != 0.0:
+                                struc_i.get_potential_energy()
+                            os.chdir('../../../')
+                        if step == 0.0:
+                            energy_i = read(self.path_opt + 'OUTCAR').get_potential_energy()
+                        os.chdir(dir_step)
+                        # Get curves of the normal modes:
+                        if step != 0.0:
+                            energy_i = read('./OUTCAR').get_potential_energy()
+                        anh_pes.append(energy_i)
+                        os.chdir('../../../')
+
+                    all_anh_pes.append(anh_pes)
+                    print('Single-point calculations for the mode at ' +
+                          str(self.eigenvalues_cm[int(mode_i)-1]) + ' ''cm-1 '
+                          'converged.')
+                print('Displacements along each of the vibrational modes '
+                      'completed.')
+
+                pickle.dump(all_anh_pes, open("all_anh_pes.txt", "wb"))
 
             #################################################################
             # Create individual PES for each mode:
@@ -285,8 +292,7 @@ class Vibrations(object):
             # Fit to Morse potential:
             #################################################################
             def morse(x, paramDe, paramA):
-                return ((paramDe*(np.exp(-paramA*x)-1)**2))
-
+                return paramDe*(np.exp(-paramA*x)-1)**2
 
             # Obtain optimized parameters (Morse).
             paramDe_opt = []
@@ -304,25 +310,26 @@ class Vibrations(object):
                 hyperparameters = [1.0, 1.0]
 
                 popt, pcov = curve_fit(morse, x, y, p0=hyperparameters,
-                                       maxfev=2000000)
+                                       maxfev=200000,method='trf')
 
                 ss_res = np.dot((y - morse(x, *popt)), (y - morse(x, *popt)))
                 ymean = np.mean(y)
-                ss_tot = np.dot((y-ymean),(y-ymean))
+                ss_tot = np.dot((y - ymean), (y - ymean))
                 rSquared = 1-ss_res/ss_tot
                 rsquared_opt.append(rSquared)
+
                 paramDe_opt.append(abs(popt[0]))
                 paramA_opt.append(abs(popt[1]))
+
                 Nparam = (((np.sqrt(2.0 * paramDe_opt[i])) / (paramA_opt[
                           i])) - (1.0/2.0))
                 fCorr1 = 2.0 / (2.0 * Nparam - 1.0)
-
                 fNum = Nparam * (Nparam - 1.0) * special.gamma(2.0 * Nparam)
                 fDenom = (special.gamma(2.0 * Nparam + 1.0))
-                if np.isinf(fDenom):
-                    fDenom = 1e12
-                if np.isinf(fNum):
-                    fNum = 1e12
+                # if np.isinf(fDenom):
+                #     fDenom = 1e12
+                # if np.isinf(fNum):
+                #     fNum = 1e12
                 fCorr2 = np.sqrt(fNum/fDenom)
                 fCorrection = fCorr1 * fCorr2
                 if np.isnan(fCorrection):
@@ -337,7 +344,6 @@ class Vibrations(object):
             anh_results[:, 3] = f_corr
             print(anh_results)
             self.intensity_correction = np.array(f_corr)
-
 
     ##########################################################################
     # Function to plot spectra:
@@ -357,7 +363,7 @@ class Vibrations(object):
             Region for plotting the spectra (in cm-1).
         spectra_mode: string
             Type of spectrum to be calculated.
-            Implemented are: 'gasphase' and 'surface'.
+            Implemented are: 'gas_phase' and 'surface'.
         resolution: float
             Resolution of the convoluted spectrum (in cm-1).
         fwhm: float
@@ -448,10 +454,10 @@ class Vibrations(object):
         plt.plot(x, y_gauss, color='navy')
         plt.show()
 
-
 ##########################################################################
 # Function to visualize the modes:
 ##########################################################################
+
 
 def view_modes(self, step_size=4.0, n_images=20):
     step_int = np.linspace(-step_size, step_size, n_images, endpoint=False)
@@ -470,7 +476,7 @@ def view_modes(self, step_size=4.0, n_images=20):
             struc_i = copy.deepcopy(struc_initial)
             pos_initial = struc_i.get_positions()
             energy_sec_mode = self.eigenvalues_thz[mode] * 1e12
-            lfactor = (hbar / ( 2 * np.pi * energy_sec_mode))**0.5
+            lfactor = (hbar / (2 * np.pi * energy_sec_mode))**0.5
             normalised_step = lfactor * step
             delta_pos = np.reshape(self.eigenvectors[mode], (-1,
                                    3)) * normalised_step
@@ -495,12 +501,14 @@ def converged_outcar(outcar_directory='./'):
             return True
     return False
 
+
 # Write vasp.py file (required to run VASP through ASE).
 def write_vasp_py(self):
     f = open('./vasp.py', "w+")
     for i in self.vasp_py:
         f.write(i)
     f.close()
+
 
 def copy_vdw_kernel(source_dir, target_dir):
     filename = 'vdw_kernel.bindat'
